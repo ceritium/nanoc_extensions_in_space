@@ -5,11 +5,30 @@ module Nanoc::Helpers
   # To activate this helper, +include+ it, like this:
   #
   #   include Nanoc::Helpers::LinkTo
-  # This require the method path_for
   module LinkTo
 
     require 'nanoc/helpers/html_escape'
     include Nanoc::Helpers::HTMLEscape
+
+
+    #  Returns the path of a page given its page_id (its "name")
+    # 
+    # Usage:
+    # in your ERB-enabled layout or content, use: <a href="<%= path_for :home %>">Home</a>
+    # 
+    # You can use a symbol or a string for your page name. Strings are nice for pages in subfolders:
+    # 
+    # <a href="<%= path_for "blog/2008/post_name" %>">A nice post</a>
+    def path_for page_id
+      # Find page
+      target_page = @pages.select { |page| page.path.gsub(/^\//,"").gsub(/\/$/,"").gsub(".#{page.extension}","") == page_id.to_s }.first
+      if target_page.nil?
+        return page_id
+      else
+        return target_page.path
+      end
+    end  
+    
 
     # Creates a HTML link to the given path or page/asset representation, and
     # with the given text.
@@ -49,6 +68,10 @@ module Nanoc::Helpers
       "<a #{attributes}href=\"#{path}\">#{text}</a>"
     end
 
+
+    def oh_path(path_or_rep)
+      path = path_or_rep.is_a?(String) ? path_for(path_or_rep) : path_or_rep.path
+    end
 
     # Creates a HTML link using link_to, except when the linked page is the
     # current one. In this case, a span element with class "active" and with
