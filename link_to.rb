@@ -11,6 +11,31 @@ module Nanoc::Helpers
     include Nanoc::Helpers::HTMLEscape
 
 
+    # Método que obtiene la ruta relativa apropiada
+    # dependiendo desde que página sea llamado
+    def get_rel(route)
+      route = clean(route)
+      page = clean(@page_rep.path)
+      
+      size = page.split('/').size
+      
+      if size > 1
+        '../'  * (size - 1) + route
+      else
+        './' + route
+      end
+    end
+    
+    # Quita la barra del principio si la tiene
+    def clean(route)
+      array = route.split('')
+      if array.first == '/'
+        route = array[1..array.size]
+      end
+      route.to_s
+    end
+
+
     #  Returns the path of a page given its page_id (its "name")
     # 
     # Usage:
@@ -21,15 +46,30 @@ module Nanoc::Helpers
     # <a href="<%= path_for "blog/2008/post_name" %>">A nice post</a>
     def path_for page_id
       # Find page
-      target_page = @pages.select { |page| page.path.gsub(/^\//,"").gsub(/\/$/,"").gsub(".#{page.extension}","") == page_id.to_s }.first
-      if target_page.nil?
-        return page_id
+      split = page_id.split('#')
+      if split.size > 1 && split.first.size != 0
+        name = split.first.to_s
+        tail = split.last.to_s
       else
-        return target_page.path
+        name = page_id
+      end
+      
+      target_page = @pages.select { |page| page.path.gsub(/^\//,"").gsub(/\/$/,"").gsub(".#{page.extension}","") == name }.first
+      if target_page.nil?
+        unless name.include? 'http://'
+          name = get_rel(name)
+        end
+        return name
+      else
+        if split.size > 1
+          full = target_page.path + '#' + tail
+        else
+          full = target_page.path 
+        end
+        return get_rel(full)
       end
     end  
     
-
     # Creates a HTML link to the given path or page/asset representation, and
     # with the given text.
     #
@@ -55,23 +95,23 @@ module Nanoc::Helpers
     #   # => '<a href="/blog/" title="My super cool blog">Blog</a>
     def link_to(text, path_or_rep=nil, attributes={})
       
-      path_or_rep = path_or_rep.to_s
+      if path_or_rep.nil?
+        path_or_rep = '#'
+      else
+        path_or_rep = path_or_rep.to_s
+      end
+ 
       # Find path
-      path = path_or_rep.is_a?(String) ? path_for(path_or_rep) : path_or_rep.to_s.path
+      path = path_or_rep.is_a?(String)  ? path_for(path_or_rep) : path_or_rep.to_s.path
       
       # Join attributes
       attributes = attributes.inject('') do |memo, (key, value)|
-        memo + key.to_s + '="' + h(value) + '" '
+        memo + key.to_s + '="' + h(value.to_s) + '" '
       end
 
       # Create link
       "<a #{attributes}href=\"#{path}\">#{text}</a>"
-    end
-
-
-    def oh_path(path_or_rep)
-      path = path_or_rep.is_a?(String) ? path_for(path_or_rep) : path_or_rep.path
-    end
+    end 
 
     # Creates a HTML link using link_to, except when the linked page is the
     # current one. In this case, a span element with class "active" and with
